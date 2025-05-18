@@ -96,35 +96,30 @@ const myAgents = [
   },
 ]
 
-export function AgentsView({ agents }: { agents: Agent[] }) {
+export function AgentsView({ agents }: { agents: NonNullable<Agent>[] }) {
   //   const [agents, setAgents] = useState(myAgents)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [sortBy, setSortBy] = useState('trustScore')
 
-  const handleDeleteAgent = (agentId: string) => {
-    setAgents(agents.filter(agent => agent.id !== agentId))
-    toast('Agent Deleted', {
-      description: 'The agent has been successfully deleted.',
-    })
-  }
+  const verifiedAgents = agents.map(agent => {
+    const verified = agent.credentials.some(cred => cred.verified)
+    return { ...agent, verified }
+  })
 
-  // Filter and sort agents
-  const filteredAgents = agents
+  const filteredAgents = verifiedAgents
     .filter(
       agent =>
         (searchQuery === '' ||
           agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           agent.did.toLowerCase().includes(searchQuery.toLowerCase())) &&
-        (statusFilter === 'all' || agent.status === statusFilter)
+        (statusFilter === 'all' || agent.verified === statusFilter)
     )
     .sort((a, b) => {
       if (sortBy === 'trustScore') return b.trustScore - a.trustScore
       if (sortBy === 'name') return a.name.localeCompare(b.name)
       if (sortBy === 'date')
-        return (
-          new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime()
-        )
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
       return 0
     })
 
@@ -218,7 +213,11 @@ export function AgentsView({ agents }: { agents: Agent[] }) {
   )
 }
 
-export function AgentsCard({ agent }: { agent: Agent }) {
+export function AgentsCard({
+  agent,
+}: {
+  agent: NonNullable<Agent & { verified: boolean }>
+}) {
   return (
     <Card
       key={agent.id}
@@ -240,19 +239,17 @@ export function AgentsCard({ agent }: { agent: Agent }) {
               <div>
                 <div className='flex items-center gap-2'>
                   <h3 className='font-bold'>{agent.name}</h3>
-                  {agent.status === 'verified' ? (
+                  {agent.verified ? (
                     <Badge className='bg-green-100 text-green-800 hover:bg-green-100'>
                       Verified
                     </Badge>
-                  ) : agent.status === 'pending' ? (
+                  ) : (
                     <Badge
                       variant='outline'
                       className='bg-yellow-100 text-yellow-800 border-yellow-200'
                     >
                       Pending Verification
                     </Badge>
-                  ) : (
-                    <Badge variant='destructive'>Rejected</Badge>
                   )}
                 </div>
                 <p className='text-sm text-muted-foreground mt-1'>
