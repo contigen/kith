@@ -3,6 +3,7 @@ import Credentials from 'next-auth/providers/credentials'
 import { NextResponse } from 'next/server'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { JWT } from 'next-auth/jwt'
+import { createUser, findUser } from './lib/db-queries'
 
 declare module 'next-auth/jwt' {
   interface JWT {
@@ -28,27 +29,36 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       async authorize(credentials) {
         const { walletAddress } = credentials || {}
         if (!walletAddress) return null
+        const existingUser = await findUser(walletAddress as string)
+        if (existingUser) {
+          return {
+            id: existingUser.id,
+            walletAddress: walletAddress as string,
+          }
+        }
+        const user = await createUser(walletAddress as string)
+        if (!user) return null
         return {
-          id: crypto.randomUUID(),
+          id: user.id,
           walletAddress: walletAddress as string,
         }
       },
     }),
   ],
   callbacks: {
-    // async authorized({ request: req, auth }) {
-    //   const PUBLIC_ROUTES = [`/`, `/connect`]
-    //   const { pathname } = req.nextUrl
-    //   const isLoggedIn = !!auth?.user
-    //   const isAPublicRoute = PUBLIC_ROUTES.some(route => route === pathname)
-    //   if (isLoggedIn && isAPublicRoute) {
-    //     return NextResponse.redirect(new URL(`/dashboard`, req.url))
-    //   }
-    //   if (isAPublicRoute) {
-    //     return true
-    //   }
-    //   return isLoggedIn
-    // },
+    async authorized({ request: req, auth }) {
+      const PUBLIC_ROUTES = [`/`, `/connect`]
+      const { pathname } = req.nextUrl
+      const isLoggedIn = !!auth?.user.walletAddress
+      const isAPublicRoute = PUBLIC_ROUTES.some(route => route === pathname)
+      if (isLoggedIn && isAPublicRoute) {
+        return NextResponse.redirect(new URL(`/dashboard`, req.url))
+      }
+      if (isAPublicRoute) {
+        return true
+      }
+      return isLoggedIn
+    },
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token = { ...token, ...user }
