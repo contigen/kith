@@ -9,6 +9,7 @@ import { AgentCapabilitiesInterface } from './agent-capabilities'
 import { AgentReviewInterface } from './agent-review'
 import { createAgentAction } from '@/actions'
 import { _FormData } from './type'
+import { useSession } from 'next-auth/react'
 
 export function RegisterAgentInterface() {
   const router = useRouter()
@@ -31,6 +32,8 @@ export function RegisterAgentInterface() {
   })
 
   const [didGenerated, setDidGenerated] = useState(false)
+  const { data: session } = useSession()
+  const userId = session?.user.id
 
   function handleInputChange(
     evt: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -101,6 +104,11 @@ export function RegisterAgentInterface() {
           },
         },
         logo: logoUrl,
+        user: {
+          connect: {
+            id: userId!,
+          },
+        },
       },
       { capabilities, limitations, category, creator, description }
     )
@@ -110,7 +118,7 @@ export function RegisterAgentInterface() {
         description:
           'Your agent has been registered and is pending credential verification.',
       })
-      router.push('/dashboard')
+      router.push('/dashboard/agents')
     } else {
       toast('Agent Registration Failed', {
         description: 'Your agent could not be registered. Do retry',
