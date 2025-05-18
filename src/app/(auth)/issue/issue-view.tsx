@@ -26,7 +26,6 @@ import {
   Upload,
   FileCheck,
   CheckCircle,
-  Search,
   Clock,
   AlertCircle,
   Shield,
@@ -40,8 +39,14 @@ import { TrustScoreCalculator } from '@/components/trust-score-calculator'
 import { Progress } from '@/components/ui/progress'
 import { toast } from 'sonner'
 import { VCredentialRequest } from '@/lib/db-queries'
-import { issueCredentialAction, resolveDIDAction } from '@/actions'
+import {
+  createCredentialAction,
+  issueCredentialAction,
+  resolveDIDAction,
+} from '@/actions'
 import { DIDLinkedResource } from '@/types'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 const pendingRequests = [
   {
@@ -79,23 +84,28 @@ const pendingRequests = [
 export function IssueView({
   credentialRequests,
 }: {
-  credentialRequests: NonNullable<VCredentialRequest>
+  credentialRequests: VCredentialRequest
 }) {
   const [credentialType, setCredentialType] = useState('')
   const [did, setDid] = useState('')
-  const [didPreview, setDidPreview] = useState<any>(null)
+  const [didPreview, setDidPreview] = useState<Record<string, string> | null>(
+    null
+  )
   const [isIssuing, setIsIssuing] = useState(false)
   const [pending, setPending] = useState(false)
+  const [approving, setApproving] = useState(false)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [notes, setNotes] = useState('')
+  const [verificationNote, setVerificationNote] = useState('')
   const [selectedRequest, setSelectedRequest] = useState<string | null>(null)
   const [reviewTab, setReviewTab] = useState('details')
-  const [currentTrustScore, setCurrentTrustScore] = useState(45)
+  const [currentTrustScore] = useState(0)
   const [projectedTrustScore, setProjectedTrustScore] = useState(65)
   const [showTrustScoreCalculator, setShowTrustScoreCalculator] =
     useState(false)
   const [linkedResources, setLinkedResources] =
     useState<Record<string, string>>()
+  const router = useRouter()
 
   const handleResolveDID = async () => {
     if (!did) return
@@ -158,17 +168,50 @@ export function IssueView({
     setShowTrustScoreCalculator(false)
   }
 
-  const handleApproveRequest = (requestId: string) => {
-    toast('Request Approved', {
-      description:
-        'The credential has been issued successfully with updated trust score',
-    })
-    setSelectedRequest(null)
+  const handleApproveRequest = async (
+    credentialRequest: VCredentialRequest[0]
+  ) => {
+    console.log(credentialRequest)
+    const { agentId, type } = credentialRequest
+    const credentialRequestId = credentialRequest.id
+    setApproving(true)
+    try {
+      const credential = await createCredentialAction(
+        {
+          type: type || 'Creator Credential',
+          verified: true,
+          vcData: '',
+          status: 'ACTIVE',
+          agent: {
+            connect: { id: agentId },
+          },
+          credentialRequest: {
+            connect: { id: credentialRequestId },
+          },
+        },
+        agentId,
+        credentialRequestId,
+        projectedTrustScore
+      )
+      console.log('credential: ', credential)
+      router.push('/dashboard/credentials')
+      toast('Request Approved', {
+        description:
+          'The credential has been issued successfully with updated trust score',
+      })
+    } catch {
+      toast('Request Not Approved', {
+        description: 'The credential has not been issued, please retry.',
+      })
+    } finally {
+      setApproving(false)
+      setSelectedRequest(null)
+    }
   }
 
-  const pendingCredentialRequests = credentialRequests.filter(
-    cred => cred.status.toLowerCase() === 'pending'
-  )
+  const pendingCredentialRequests = credentialRequests
+    .filter(cred => cred.status.toLowerCase() === 'pending')
+    .reverse()
 
   const handleRejectRequest = (requestId: string) => {
     toast('Request Rejected', {
@@ -233,7 +276,7 @@ export function IssueView({
                 </Badge>
               </div>
 
-              {pendingRequests.length === 0 ? (
+              {pendingCredentialRequests.length === 0 ? (
                 <Card>
                   <CardContent className='flex flex-col items-center justify-center py-12'>
                     <div className='rounded-full bg-muted p-3 mb-4'>
@@ -263,14 +306,11 @@ export function IssueView({
                         <div className='flex items-start gap-4'>
                           <Avatar className='h-12 w-12 rounded-md'>
                             <AvatarImage
-                              src={
-                                request.credential?.agent.logo ||
-                                '/placeholder.svg'
-                              }
-                              alt={request.credential?.agent.name}
+                              src={request.agent.logo || '/placeholder.svg'}
+                              alt={request.agent.name}
                             />
                             <AvatarFallback className='rounded-md'>
-                              {request.credential?.agent.name.substring(0, 2)}
+                              {request.agent.name.substring(0, 2)}
                             </AvatarFallback>
                           </Avatar>
                           <div className='flex-1'>
@@ -278,22 +318,22 @@ export function IssueView({
                               <div>
                                 <div className='flex items-center gap-2'>
                                   <h3 className='font-bold'>
-                                    {request.credential?.agent.name}
+                                    {request.agent.name}
                                   </h3>
                                   <Badge variant='outline'>
                                     {request.type} Credential
                                   </Badge>
                                 </div>
                                 <p className='text-sm text-muted-foreground'>
-                                  Created by {request.credential?.agent.creator}
+                                  Created by {request.agent.creator}
                                 </p>
                                 <p className='text-xs text-muted-foreground mt-1'>
-                                  {request.credential?.agent.did}
+                                  {request.agent.did}
                                 </p>
                               </div>
                               <div className='flex items-center gap-2'>
                                 <TrustScoreBadge
-                                  score={request.credential?.agent.trustScore}
+                                  score={request.agent.trustScore}
                                   size='sm'
                                 />
                                 <Badge
@@ -360,9 +400,7 @@ export function IssueView({
                                       </p>
                                       <p className='text-xs text-muted-foreground'>
                                         Uploaded on{' '}
-                                        {new Date(
-                                          request.requestDate
-                                        ).toLocaleDateString()}
+                                        {request.createdAt.toLocaleDateString()}
                                       </p>
                                     </div>
                                     <Button
@@ -382,29 +420,23 @@ export function IssueView({
                                       <div className='text-muted-foreground'>
                                         Name:
                                       </div>
-                                      <div>
-                                        {request.credential?.agent.name}
-                                      </div>
+                                      <div>{request.agent.name}</div>
                                       <div className='text-muted-foreground'>
                                         Creator:
                                       </div>
-                                      <div>
-                                        {request.credential?.agent.name}
-                                      </div>
+                                      <div>{request.agent.name}</div>
                                       <div className='text-muted-foreground'>
                                         DID:
                                       </div>
                                       <div className='truncate'>
-                                        {request.credential?.agent.did}
+                                        {request.agent.did}
                                       </div>
                                       <div className='text-muted-foreground'>
                                         Current Trust Score:
                                       </div>
                                       <div>
                                         <TrustScoreBadge
-                                          score={
-                                            request.credential?.agent.trustScore
-                                          }
+                                          score={request.agent.trustScore}
                                           size='sm'
                                         />
                                       </div>
@@ -451,7 +483,7 @@ export function IssueView({
                                       Current Trust Score
                                     </div>
                                     <TrustScoreBadge
-                                      score={request.trustScore}
+                                      score={request.agent.trustScore}
                                       size='lg'
                                     />
                                   </div>
@@ -477,16 +509,15 @@ export function IssueView({
                                     <span>
                                       +
                                       {projectedTrustScore -
-                                        (request.credential?.agent
-                                          ?.trustScore ?? 0) || 0}{' '}
+                                        (request.agent?.trustScore ?? 0) ||
+                                        0}{' '}
                                       points
                                     </span>
                                   </div>
                                   <Progress
                                     value={
                                       projectedTrustScore -
-                                        (request.credential?.agent
-                                          ?.trustScore ?? 0) || 0
+                                        (request.agent?.trustScore ?? 0) || 0
                                     }
                                     max={100}
                                     className='h-2'
@@ -544,6 +575,10 @@ export function IssueView({
                                     id={`notes-${request.id}`}
                                     placeholder='Add notes about your verification decision...'
                                     className='mt-2'
+                                    value={verificationNote}
+                                    onChange={({ currentTarget: { value } }) =>
+                                      setVerificationNote(value)
+                                    }
                                   />
                                 </div>
 
@@ -579,15 +614,17 @@ export function IssueView({
                                       handleRejectRequest(request.id)
                                     }
                                   >
-                                    <AlertCircle className='mr-2 h-4 w-4' />
+                                    <AlertCircle className='mr-2 size-4' />
                                     Reject
                                   </Button>
                                   <Button
                                     onClick={() =>
-                                      handleApproveRequest(request.id)
+                                      handleApproveRequest(request)
                                     }
+                                    disabled={approving}
+                                    pending={approving}
                                   >
-                                    <CheckCircle className='mr-2 h-4 w-4' />
+                                    <CheckCircle className='mr-2 size-4' />
                                     Approve & Issue
                                   </Button>
                                 </div>
@@ -596,14 +633,13 @@ export function IssueView({
                           </div>
                         ) : (
                           <div className='flex justify-end mt-4 pt-4 border-t'>
-                            <Button
-                              variant='outline'
-                              className='mr-2'
-                              onClick={() =>
-                                window.open(`/registry/${request.id}`, '_blank')
-                              }
-                            >
-                              View Agent
+                            <Button variant='outline' className='mr-2' asChild>
+                              <Link
+                                href={`/registry/${request.agent.id}`}
+                                target='_blank'
+                              >
+                                View Agent
+                              </Link>
                             </Button>
                             <Button
                               onClick={() => setSelectedRequest(request.id)}
@@ -695,7 +731,7 @@ export function IssueView({
                       <div className='text-muted-foreground'>DID:</div>
                       <div className='truncate'>{didPreview.did}</div>
                       <div className='text-muted-foreground'>Resolved DID:</div>
-                      <pre className='text-wrap'>
+                      <pre className='text-wrap break-all'>
                         {JSON.stringify(didPreview.resolvedDID, null, 2)}
                       </pre>
                       <div className='text-muted-foreground'>
@@ -707,107 +743,6 @@ export function IssueView({
                     </div>
                   </div>
                 )}
-
-                {didPreview && credentialType && (
-                  <div className='space-y-4'>
-                    <div className='flex items-center justify-between p-4 border rounded-md bg-muted/50'>
-                      <div className='flex items-center gap-3'>
-                        <Shield className='h-5 w-5 text-primary' />
-                        <div>
-                          <h3 className='text-sm font-medium'>
-                            Trust Score Impact
-                          </h3>
-                          <p className='text-xs text-muted-foreground'>
-                            Issuing this credential will affect the agent's
-                            trust score
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        variant='outline'
-                        size='sm'
-                        onClick={() =>
-                          setShowTrustScoreCalculator(!showTrustScoreCalculator)
-                        }
-                      >
-                        {showTrustScoreCalculator
-                          ? 'Hide Calculator'
-                          : 'Show Calculator'}
-                      </Button>
-                    </div>
-
-                    <div className='flex items-center justify-between gap-4 p-4 border rounded-md'>
-                      <div className='space-y-1'>
-                        <div className='text-sm font-medium'>
-                          Current Trust Score
-                        </div>
-                        <TrustScoreBadge score={currentTrustScore} size='lg' />
-                      </div>
-
-                      <div className='flex-1 flex items-center justify-center'>
-                        <ArrowRight className='h-6 w-6 text-muted-foreground' />
-                      </div>
-
-                      <div className='space-y-1'>
-                        <div className='text-sm font-medium'>
-                          Projected Trust Score
-                        </div>
-                        <TrustScoreBadge
-                          score={projectedTrustScore}
-                          size='lg'
-                        />
-                      </div>
-                    </div>
-
-                    <div className='space-y-2'>
-                      <div className='flex justify-between text-sm'>
-                        <span>Score Improvement</span>
-                        <span>
-                          +{projectedTrustScore - currentTrustScore} points
-                        </span>
-                      </div>
-                      <Progress
-                        value={projectedTrustScore - currentTrustScore}
-                        max={100}
-                        className='h-2'
-                      />
-                      <p className='text-xs text-muted-foreground'>
-                        {credentialType === 'Safety'
-                          ? 'Safety credentials have a significant impact on trust scores.'
-                          : credentialType === 'Creator'
-                          ? 'Creator credentials establish baseline trust for the agent.'
-                          : "Capability credentials validate the agent's functional claims."}
-                      </p>
-                    </div>
-
-                    {showTrustScoreCalculator && (
-                      <TrustScoreCalculator
-                        initialCredentials={[
-                          {
-                            type: 'Creator',
-                            verified:
-                              credentialType === 'Creator' ? true : false,
-                            weight: 30,
-                          },
-                          {
-                            type: 'Safety',
-                            verified:
-                              credentialType === 'Safety' ? true : false,
-                            weight: 40,
-                          },
-                          {
-                            type: 'Capability',
-                            verified:
-                              credentialType === 'Capability' ? true : false,
-                            weight: 30,
-                          },
-                        ]}
-                        onScoreChange={handleTrustScoreChange}
-                      />
-                    )}
-                  </div>
-                )}
-
                 <div className='space-y-2'>
                   <Label htmlFor='file-upload'>
                     Upload Verification Evidence
@@ -887,18 +822,10 @@ export function IssueView({
                   onClick={handleIssueCredential}
                   disabled={isIssuing || !credentialType || !did}
                   className='w-full'
+                  pending={isIssuing}
                 >
-                  {isIssuing ? (
-                    <div className='flex items-center gap-2'>
-                      <div className='h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent' />
-                      Issuing Credential...
-                    </div>
-                  ) : (
-                    <>
-                      <CheckCircle className='mr-2 h-4 w-4' />
-                      Issue Credential with Updated Trust Score
-                    </>
-                  )}
+                  <CheckCircle className='mr-2 size-4' />
+                  Issue Cheqd Credential
                 </Button>
               </CardFooter>
             </Card>
