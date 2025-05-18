@@ -8,17 +8,24 @@ import { Badge } from '@/components/ui/badge'
 import { TrustScoreBadge } from '@/components/trust-score-badge'
 import { VerifiableCredentialBadge } from '@/components/verifiable-credential-badge'
 import { Search, Download, Share2 } from 'lucide-react'
-import { verifyDID } from '@/actions'
+import { verifyCredentialAction } from '@/actions'
+import { VerifiableCredential } from '@/types'
+import { Agent } from '@/lib/db-queries'
 
 export default function VerifyPage() {
   const [did, setDid] = useState('')
   const [isVerifying, setIsVerifying] = useState(false)
-  const [verificationResult, setVerificationResult] = useState<any>(null)
+  const [verificationResult, setVerificationResult] = useState<Agent | null>(
+    null
+  )
+  const [verifiedCredential, setVerifiedCredential] =
+    useState<VerifiableCredential | null>(null)
 
   const handleVerify = async () => {
     setIsVerifying(true)
-    const agent = await verifyDID(did)
-    setVerificationResult(agent)
+    const { agent, verifiedCredential } = await verifyCredentialAction(did)
+    setVerificationResult(agent as Agent)
+    setVerifiedCredential(verifiedCredential)
     setIsVerifying(false)
   }
 
@@ -45,18 +52,13 @@ export default function VerifyPage() {
                   className='flex-1'
                 />
               </div>
-              <Button onClick={handleVerify} disabled={isVerifying}>
-                {isVerifying ? (
-                  <div className='flex items-center gap-2'>
-                    <div className='h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent' />
-                    Verifying...
-                  </div>
-                ) : (
-                  <>
-                    <Search className='mr-2 h-4 w-4' />
-                    Verify Agent
-                  </>
-                )}
+              <Button
+                onClick={handleVerify}
+                disabled={isVerifying}
+                pending={isVerifying}
+              >
+                <Search className='mr-2 size-4' />
+                Verify Agent
               </Button>
             </div>
           </CardContent>
@@ -130,6 +132,11 @@ export default function VerifyPage() {
           </Card>
         )}
       </div>
+      {verifiedCredential && (
+        <div className='bg-muted rounded-3xl py-4 px-8 my-8'>
+          <pre className='max-w-full text-wrap break-all'></pre>
+        </div>
+      )}
     </div>
   )
 }
