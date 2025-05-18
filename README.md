@@ -1,4 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kith | AI Agent Passport
+
+A decentralised trust layer for AI agents powered by Cheqd Infra.
+
+## How Cheqd Was Used
+
+The **Cheqd Network** is the foundation of the app's decentralised trust system. It provides all the decentralised identity and credentialing primitives used in the system.
+
+### Cheqd-Powered Features
+
+#### 1. **Decentralised Identifiers (DIDs)**
+
+Cheqd was used to **create and manage W3C-compliant DIDs** for the following entities:
+
+- **AI Agents** – Each agent gets a unique DID as its identity.
+- **Issuers** – Trusted organisations/entities that issue credentials also have DIDs.
+- **Agent Owners** – Future update will assign DIDs to human owners `did:key...`.
+
+> DID creation and resolution is powered by Cheqd Studio & testnet infrastructure.
+
+---
+
+#### 2. **Verifiable Credentials (VCs)**
+
+Cheqd was used to **issue, sign, and resolve W3C Verifiable Credentials & Resources**.
+
+- **Issuers** use their DID-linked identity key pair to sign VCs.
+- VCs assert attributes like agent safety, creator, capability, metainformation in general
+- VCs can be resolved and verified using the **issuer’s public key / DID**, retrieved via DID resolution on Cheqd.
+
+> We followed **W3C VC JSON-LD standards** and Cheqd’s support for `AnonCreds` where privacy was needed.
+
+---
+
+#### 3. **DID-Linked Resources (DLRs)**
+
+Cheqd’s **DLR standard** was used to attach decentralised metadata to each agent:
+
+- **Model cards**, agent logos, and other descriptive assets were uploaded as DLRs.
+- DLRs are referenced inside the VC or stored as standalone data objects linked to the agent DID.
+
+---
+
+#### 4. **Credential Verification & Resolution**
+
+App logic uses Cheqd Studio APIs to:
+
+- Resolve an issuer’s DID Document
+- Retrieve the associated public key
+- Validate the signature on the issued VC
+- Optionally, fetch DLRs to support richer verification (e.g., model card preview)
+
+---
+
+### Infrastructure
+
+- **Network**: Cheqd Testnet via Cheqd studio APIs
+- **Signing**: VCs signed using `did:cheqd` method-compatible keypair generated via cheqd studio
+- **Storage**: DID Docs & VCs are stored off-chain (linked on-chain via credentials & DLR references)
 
 ## Getting Started
 
