@@ -7,25 +7,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id     String  @id @default(cuid()) 
+  wallet String @unique
+  agents Agent[]
+}
+
 model Agent {
-  id                String   @id @default(cuid())
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                String              @id @default(cuid())
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
   name              String
-  description       String?  
-  did               String   @unique
+  description       String?
+  did               String              @unique
   logo              String?
-  trustScore        Int      @default(0) 
-  creator           String 
+  trustScore        Int                 @default(0)
+  creator           String
   category          String?
   website           String?
-  contactEmail String?
-  tags              String[] @default([])
+  contactEmail      String?
+  tags              String[]            @default([])
   credentials       Credential[]
   auditReports      AuditReport[]
   timelineEvents    TimelineEvent[]
   concerns          Concern[]
   modelCard         ModelCard?
+  userId            String
+  user              User                @relation(fields: [userId], references: [id])
+  CredentialRequest CredentialRequest[]
 
   @@index([did])
   @@index([category])
@@ -33,57 +42,48 @@ model Agent {
 }
 
 model Credential {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  type        String  
-  verified    Boolean  @default(false)
-  vcData      Json   
-  status      CredentialStatus @default(ACTIVE)
-  
-  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  agentId     String
-  // issuer      Issuer   @relation(fields: [issuerId], references: [id])
-  // issuerId    String
-  requests    CredentialRequest[]
-
-  @@index([agentId])
-  @@index([type])
-  @@index([status])
+  id        String           @id @default(cuid())
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  type      String
+  verified  Boolean          @default(false)
+  vcData    Json
+  status    CredentialStatus @default(ACTIVE)
+  agent    Agent               @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentId  String
+  credentialRequest CredentialRequest @relation("RequestToCredential",fields: [credentialRequestId], references: [id])
+  credentialRequestId String @unique
 }
 
 model CredentialRequest {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  status      RequestStatus @default(PENDING)
-  documents   Json?  
-  notes       String?  @db.Text
-  type String?
-  credential  Credential? @relation(fields: [credentialId], references: [id])
-  credentialId String?
-  requesterId String   
-
-  @@index([requesterId])
-  @@index([status])
+  id           String        @id @default(cuid())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  status       RequestStatus @default(PENDING)
+  documents    Json?
+  notes        String?       @db.Text
+  type         String?
+  agentId      String
+  agent        Agent         @relation(fields: [agentId], references: [id])
+  credential Credential? @relation("RequestToCredential")
 }
 
 model AuditReport {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  title       String
-  date        DateTime
-  summary     String   @db.Text
-  content     String   @db.Text
-  fileUrl     String? 
-  tags        String[] @default([])
-  visibility  Visibility @default(PUBLIC)
-  
-  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  agentId     String
+  id         String     @id @default(cuid())
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  title      String
+  date       DateTime
+  summary    String     @db.Text
+  content    String     @db.Text
+  fileUrl    String?
+  tags       String[]   @default([])
+  visibility Visibility @default(PUBLIC)
+
+  agent    Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentId  String
   // issuer      Issuer   @relation(fields: [issuerId], references: [id])
-  issuerId    String
+  issuerId String
 
   @@index([agentId])
   @@index([issuerId])
@@ -91,69 +91,68 @@ model AuditReport {
 }
 
 model TimelineEvent {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  event       String
-  date        DateTime
-  issuer      String
-  details     String?  @db.Text
-  eventType   EventType @default(OTHER)
-  
-  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  agentId     String
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  event     String
+  date      DateTime
+  issuer    String
+  details   String?   @db.Text
+  eventType EventType @default(OTHER)
+
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentId String
 
   @@index([agentId])
   @@index([eventType])
 }
 
 model ModelCard {
-  id                  String   @id @default(cuid())
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  agentId             String   @unique
-  overview            String   @db.Text
-  capabilities        Json     
-  limitations         Json    
+  id                   String   @id @default(cuid())
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  agentId              String   @unique
+  overview             String   @db.Text
+  capabilities         Json
+  limitations          Json
   safetyConsiderations String?  @db.Text
-  trainingData        String?  @db.Text
-  evaluationResults   Json?   
-  version             String?
-  lastUpdated         DateTime @updatedAt
-  agent               Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  
+  trainingData         String?  @db.Text
+  evaluationResults    Json?
+  version              String?
+  lastUpdated          DateTime @updatedAt
+  agent                Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
   @@index([agentId])
 }
 
 model Concern {
-  id            String   @id @default(cuid())
-  createdAt     DateTime @default(now())
-  type          String  
-  description   String   @db.Text
-  evidence      String? 
+  id            String        @id @default(cuid())
+  createdAt     DateTime      @default(now())
+  type          String
+  description   String        @db.Text
+  evidence      String?
   contactEmail  String?
   status        ConcernStatus @default(PENDING)
-  priority      Priority @default(MEDIUM)
-  responseNotes String?  @db.Text
-  
-  agent         Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  agentId       String
+  priority      Priority      @default(MEDIUM)
+  responseNotes String?       @db.Text
+
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentId String
 
   @@index([agentId])
   @@index([status])
   @@index([priority])
 }
 
-
 model VerificationRequest {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  did         String
-  status      VerificationStatus @default(PENDING)
-  result      Json?    
-  notes       String?  @db.Text
-  reviewerId  String? 
-  
+  id         String             @id @default(cuid())
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  did        String
+  status     VerificationStatus @default(PENDING)
+  result     Json?
+  notes      String?            @db.Text
+  reviewerId String?
+
   @@index([did])
   @@index([status])
 }
