@@ -18,14 +18,18 @@ import {
 import {
   createAgent,
   CreateAgentInput,
+  createCredential,
   createRequestCredential,
   CreateRequestCredential,
+  CredentialInput,
   findAgentByDID,
+  updateCredential,
 } from './lib/db-queries'
 import { trustScoreSchema } from './lib/schema'
 import { toBase64 } from './lib/utils'
 import { google } from '@ai-sdk/google'
 import { generateObject } from 'ai'
+import { VerifiableCredential } from './types'
 
 const issuerDid = (() => {
   if (!process.env.ISSUER_DID) throw new Error('ISSUER_DID missing')
@@ -112,6 +116,9 @@ export async function issueCredentialAction(
   attributes: Record<string, string>,
   credentialType: string
 ) {
+  const agent = await findAgentByDID(subjectDid)
+  const agentCredential = agent?.credentials.at(-1)
+  const credentialId = agentCredential?.id
   const credential = await issueCredential({
     issuerDid,
     // subjectDid: 'did:cheqd:testnet:58eb7c21-c52d-4bba-859e-094273030b29',
@@ -120,12 +127,32 @@ export async function issueCredentialAction(
     // '@context': ['https://schema.org'],
     type: [credentialType],
   })
+  try {
+    await updateCredential(credentialId || '', credential)
+  } catch {}
   console.log('credential: ', credential)
+
   return credential
 }
 
-export async function verifyCredentialAction() {
-  const credential = await verifyCredential({})
+export async function verifyCredentialAction(did: string) {
+  const agent = await findAgentByDID(did)
+  const agentCredential = agent?.credentials.at(-1)
+  const verifiedCredential = agentCredential?.vcData as VerifiableCredential
+  console.log(verifiedCredential)
+
+  const credential = await verifyCredential({
+    credential: {
+      issuer: issuerDid,
+    },
+    policies: {
+      issuanceDate: false,
+      expirationDate: false,
+      audience: false,
+    },
+  })
+  console.log('credential: ', credential)
+  return { agent, verifiedCredential }
 }
 
 export async function generateTrustScore() {
@@ -153,6 +180,18 @@ export async function requestCredentialAction(data: CreateRequestCredential) {
 export async function verifyDID(did: string) {
   return await findAgentByDID(did)
 }
+
+export async function createCredentialAction(
+  data: CredentialInput,
+  agentId: string,
+  credentialRequestId: string,
+  score: number
+) {
+  return await createCredential(data, agentId, credentialRequestId, score)
+}
+
+export async function rejectCredential() {}
+
 export async function uploadImageToIPFS(formData: FormData): Promise<{
   success: boolean
   message: string
@@ -190,7 +229,6 @@ export async function uploadImageToIPFS(formData: FormData): Promise<{
       return { success: false, message: 'Pinata API keys not configured' }
     }
 
-    // Make request to Pinata API
     const response = await fetch(
       'https://api.pinata.cloud/pinning/pinFileToIPFS',
       {
@@ -199,7 +237,7 @@ export async function uploadImageToIPFS(formData: FormData): Promise<{
           pinata_api_key: apiKey,
           pinata_secret_api_key: apiSecret,
         },
-        body: pinataFormData as any, // Type casting needed due to differences between FormData types
+        body: pinataFormData,
       }
     )
 

@@ -66,10 +66,13 @@ export async function issueCredential(payload: VerifiableCredentialPayload) {
 }
 
 export async function verifyCredential(payload: VerifiedCredentialPayload) {
-  return await cheqdApiClient<VerifiedCredential>('credential/verify', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
+  return await cheqdApiClient<VerifiedCredential>(
+    'credential/verify?verifyStatus=true',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }
+  )
 }
 
 // to be implemented
