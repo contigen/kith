@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { Search, Check, Copy, LogOut } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { Check, Copy, LogOut } from 'lucide-react'
+import { useState } from 'react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
+import { signOut, useSession } from 'next-auth/react'
 
 const navItems = [
   { name: 'Home', href: '/' },
@@ -28,36 +29,14 @@ const navItems = [
 
 export function Navbar() {
   const pathname = usePathname()
-  const [isConnected, setIsConnected] = useState(false)
-  const [walletType, setWalletType] = useState('')
-  const [walletAddress, setWalletAddress] = useState('')
   const [copied, setCopied] = useState(false)
+  const { data: session } = useSession()
+  const walletAddress = session?.user.walletAddress
+  const isConnected = session?.user.walletAddress
 
-  // Check if user already has a connected wallet
-  useEffect(() => {
-    // This would typically check local storage or a session
-    const savedWallet = localStorage.getItem('connectedWallet')
-    if (savedWallet) {
-      try {
-        const walletData = JSON.parse(savedWallet)
-        setWalletAddress(walletData.address)
-        setWalletType(walletData.type)
-        setIsConnected(true)
-      } catch (e) {
-        localStorage.removeItem('connectedWallet')
-      }
-    }
-  }, [])
-
-  const disconnectWallet = () => {
-    setIsConnected(false)
-    setWalletType('')
-    setWalletAddress('')
-    localStorage.removeItem('connectedWallet')
-
-    toast('Wallet Disconnected', {
-      description: 'Your DID wallet has been disconnected.',
-    })
+  const logout = () => {
+    toast('You are logged out!')
+    signOut()
   }
 
   const copyToClipboard = () => {
@@ -97,10 +76,6 @@ export function Navbar() {
           </nav>
         </div>
         <div className='flex items-center gap-2'>
-          <Button variant='ghost' size='icon' className='hidden md:flex'>
-            <Search className='w-4 h-4' />
-            <span className='sr-only'>Search</span>
-          </Button>
           <ThemeToggle />
 
           {isConnected ? (
@@ -109,12 +84,12 @@ export function Navbar() {
                 <Button variant='outline' className='flex items-center gap-2'>
                   <Avatar className='w-6 h-6'>
                     <AvatarFallback className='text-xs bg-primary text-primary-foreground'>
-                      {walletType.substring(0, 2).toUpperCase()}
+                      {'cheqd'.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <span className='hidden md:inline-block'>
-                    {walletAddress.substring(0, 8)}...
-                    {walletAddress.substring(walletAddress.length - 4)}
+                    {walletAddress?.substring(0, 8)}...
+                    {walletAddress?.substring(walletAddress?.length - 4)}
                   </span>
                 </Button>
               </DropdownMenuTrigger>
@@ -135,7 +110,7 @@ export function Navbar() {
                   )}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={disconnectWallet}>
+                <DropdownMenuItem onClick={logout}>
                   <LogOut className='w-4 h-4 mr-2' />
                   Disconnect
                 </DropdownMenuItem>

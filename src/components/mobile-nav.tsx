@@ -4,8 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Home, Search, Shield, FileCheck, User } from 'lucide-react'
-import { toast } from 'sonner'
-import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 
 const navItems = [
   { name: 'Home', href: '/', icon: Home },
@@ -16,16 +15,8 @@ const navItems = [
 
 export function MobileNav() {
   const pathname = usePathname()
-  const [isConnected, setIsConnected] = useState(false)
-
-  // Check if user already has a connected wallet
-  useEffect(() => {
-    // This would typically check local storage or a session
-    const savedWallet = localStorage.getItem('connectedWallet')
-    if (savedWallet) {
-      setIsConnected(true)
-    }
-  }, [])
+  const { data: session } = useSession()
+  const isConnected = session?.user.walletAddress
 
   return (
     <div className='fixed bottom-0 left-0 z-50 w-full h-16 border-t bg-background md:hidden'>
