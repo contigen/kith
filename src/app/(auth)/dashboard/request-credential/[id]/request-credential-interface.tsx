@@ -64,7 +64,7 @@ const agents = [
 
 // Mock data for issuers
 const issuers = [
-  { id: '1', name: 'Kith', types: ['Safety', 'Capability'] },
+  { id: '1', name: 'Kith', types: ['Creator', 'Safety', 'Capability'] },
   { id: '2', name: 'OpenAI', types: ['Creator', 'Capability'] },
   { id: '3', name: 'Anthropic', types: ['Creator', 'Safety'] },
   { id: '4', name: 'Google DeepMind', types: ['Creator', 'Capability'] },
@@ -109,16 +109,9 @@ export function RequestCredentialInterface({ agent }: { agent: Agent }) {
       type: credentialType,
       notes,
       documents: await uploadedFile?.text(),
-      requesterId: '',
-      credential: {
-        create: {
-          agentId: agent?.id,
-          type: credentialType,
-          agent: {
-            create: {
-              name: agent?.name,
-            },
-          },
+      agent: {
+        connect: {
+          id: agent?.id,
         },
       },
     })
@@ -131,7 +124,7 @@ export function RequestCredentialInterface({ agent }: { agent: Agent }) {
       router.push('/dashboard/credentials')
     } else {
       toast.warning('Credential Request could not be submitted', {
-        description: 'Do retry you credential request.',
+        description: 'Please, retry your credential request.',
       })
     }
   }
@@ -187,21 +180,17 @@ export function RequestCredentialInterface({ agent }: { agent: Agent }) {
                 <div>
                   <div className='flex items-center gap-2'>
                     <h3 className='font-bold'>{agent.name}</h3>
-                    {agent.credentials.at(-1)?.status?.toLowerCase() ===
-                    'verified' ? (
+                    {agent.credentials.at(-1)?.verified ? (
                       <Badge className='bg-green-100 text-green-800 hover:bg-green-100'>
                         Verified
                       </Badge>
-                    ) : agent.credentials.at(-1)?.status?.toLowerCase() ===
-                      'pending' ? (
+                    ) : (
                       <Badge
                         variant='outline'
                         className='bg-yellow-100 text-yellow-800 border-yellow-200'
                       >
                         Pending Verification
                       </Badge>
-                    ) : (
-                      <Badge variant='destructive'>Rejected</Badge>
                     )}
                   </div>
                   <p className='text-sm text-muted-foreground'>
