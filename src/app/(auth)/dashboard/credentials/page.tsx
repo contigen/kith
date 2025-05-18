@@ -74,8 +74,8 @@ export default async function CredentialsPage() {
     getCredentials(),
     getCredentialRequests(),
   ])
-  if (!credentials || !credentialRequests)
-    redirect('/dashboard/request-credential')
+
+  if (!credentials || !credentialRequests) redirect('/dashboard')
 
   console.log('credentials: ', credentials)
   console.log('credentialsRequests: ', credentialRequests)
@@ -127,7 +127,7 @@ export default async function CredentialsPage() {
             </Card>
           ) : (
             <div className='grid gap-4'>
-              {credentialRequests.map(cred => (
+              {credentialRequests.reverse().map(cred => (
                 <Card key={cred.id}>
                   <CardContent className='p-6'>
                     <div className='flex items-start justify-between'>
@@ -153,9 +153,7 @@ export default async function CredentialsPage() {
                         </div>
                         <p className='text-sm text-muted-foreground'>
                           For agent:{' '}
-                          <span className='font-medium'>
-                            {cred.credential?.agent.name}
-                          </span>
+                          <span className='font-medium'>{cred.agent.name}</span>
                         </p>
                         <p className='text-sm text-muted-foreground'>
                           Issuer: <span className='font-medium'>{'Kith'}</span>
@@ -195,7 +193,12 @@ export default async function CredentialsPage() {
                         </Button>
                       )}
                       {cred.status.toLowerCase() === 'pending' && (
-                        <Button variant='outline' size='sm' className='mr-2'>
+                        <Button
+                          disabled
+                          variant='outline'
+                          size='sm'
+                          className='mr-2'
+                        >
                           Check Status
                         </Button>
                       )}
@@ -205,7 +208,7 @@ export default async function CredentialsPage() {
                         </Button>
                       )}
                       <Button variant='outline' size='sm' asChild>
-                        <Link href={`/registry/${cred.credential?.agentId}`}>
+                        <Link href={`/registry/${cred.agentId}`}>
                           View Agent
                         </Link>
                       </Button>
@@ -240,7 +243,7 @@ export default async function CredentialsPage() {
             </Card>
           ) : (
             <div className='grid gap-4'>
-              {credentials.map(cred => (
+              {credentials.reverse().map(cred => (
                 <Card key={cred.id}>
                   <CardContent className='p-6'>
                     <div className='flex items-start justify-between'>
@@ -275,7 +278,12 @@ export default async function CredentialsPage() {
                       </div>
                     </div>
                     <div className='flex justify-end mt-4 pt-4 border-t'>
-                      <Button variant='outline' size='sm' className='mr-2'>
+                      <Button
+                        variant='outline'
+                        disabled
+                        size='sm'
+                        className='mr-2'
+                      >
                         <Search className='mr-2 h-3 w-3' />
                         View Details
                       </Button>
