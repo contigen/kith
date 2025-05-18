@@ -109,7 +109,6 @@ const credentialRequests = [
 ]
 
 export default function DashboardPage() {
-  // Calculate stats
   const stats = {
     totalAgents: myAgents.length,
     verifiedAgents: myAgents.filter(a => a.status === 'verified').length,
@@ -124,7 +123,6 @@ export default function DashboardPage() {
 
   return (
     <div className='space-y-6'>
-      {/* Stats Overview */}
       <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
         <Card className='bg-gradient-to-br from-background to-primary/5'>
           <CardContent className='p-6'>
